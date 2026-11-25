@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PyWeb Studio — Year 7 Computing Interactive Code Lab</title>
+  <!-- Google Identity Services (Optional OAuth Client ID via ?client_id=...) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Pyodide for in-browser Python execution & AST analysis -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-alt: #162032;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      /* Official Scratch 3.0 Colours */
+      --scratch-events: #FFBF00;
+      --scratch-looks: #9966FF;
+      --scratch-sensing: #5CB1D6;
+      --scratch-variables: #FF8C1A;
+      --scratch-operators: #59C059;
+      --scratch-control: #FFAB19;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Header */
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      color: #0f172a;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    select, button, input[type="text"], input[type="email"] {
+      background: var(--panel-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 11px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    button:hover { background: #26354d; }
+    .btn-primary { background: var(--accent); color: #0f172a; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-hover); color: #fff; }
+    .btn-success { background: var(--success); color: #0f172a; border-color: var(--success); }
+    .btn-success:hover { filter: brightness(1.08); }
+    .btn-warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+    .student-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: #bae6fd;
+    }
+    /* Main Grid */
+    main {
+      display: grid;
+      grid-template-columns: 35% 37% 28%;
+      flex: 1;
+      overflow: hidden;
+    }
+    @media (max-width: 980px) {
+      body { height: auto; overflow: auto; }
+      main { grid-template-columns: 1fr; overflow: visible; }
+    }
+    .pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .pane:last-child { border-right: none; }
+    .pane-header {
+      background: var(--panel-alt);
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pane-body {
+      padding: 14px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    /* Lesson Guide & Scratch Blocks */
+    .lesson-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; color: #fff; }
+    .lesson-desc { font-size: 0.88rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px; }
+    .scratch-box {
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .scratch-box h4 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.04em;
+    }
+    .s-block {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 5px;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .s-indent { margin-left: 18px; }
+    .s-events { background: var(--scratch-events); }
+    .s-looks { background: var(--scratch-looks); color: #fff; }
+    .s-sensing { background: var(--scratch-sensing); }
+    .s-variables { background: var(--scratch-variables); }
+    .s-operators { background: var(--scratch-operators); }
+    .s-control { background: var(--scratch-control); }
+    .tier-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .tier-btn {
+      font-size: 0.78rem;
+      padding: 4px 9px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+    .tier-btn.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .checklist {
+      list-style: none;
+      margin-top: 8px;
+    }
+    .checklist li {
+      font-size: 0.84rem;
+      padding: 5px 0;
+      border-bottom: 1px dashed rgba(148, 163, 184, 0.2);
+      color: #e2e8f0;
+    }
+    /* Editor */
+    textarea#codeEditor {
+      width: 100%;
+      flex: 1;
+      background: #090d16;
+      color: #e2e8f0;
+      border: none;
+      padding: 14px;
+      font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      resize: none;
+      outline: none;
+      tab-size: 4;
+    }
+    .editor-toolbar {
+      background: var(--panel);
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    /* Output & Feedback */
+    pre#consoleOut {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: Consolas, monospace;
+      font-size: 0.83rem;
+      color: #a7f3d0;
+      min-height: 110px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-bottom: 12px;
+    }
+    iframe#htmlPreview {
+      width: 100%;
+      height: 170px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .feedback-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .score-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .score-badge {
+      font-size: 1rem;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+    .pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+    .warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .fb-item {
+      font-size: 0.83rem;
+      padding: 5px 8px;
+      border-radius: 5px;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+    .fb-ok { background: rgba(34, 197, 94, 0.1); color: #bbf7d0; }
+    .fb-tip { background: rgba(245, 158, 11, 0.12); color: #fde68a; }
+    .fb-err { background: rgba(239, 68, 68, 0.14); color: #fecaca; }
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 560px;
+      width: 100%;
+      padding: 20px;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    .modal h3 { margin-bottom: 8px; font-size: 1.1rem; }
+    .modal p { font-size: 0.86rem; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; font-weight: 600; }
+    .form-group input, .form-group textarea { width: 100%; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #f59e0b;
+    }
+    .status-dot.ready { background: #22c55e; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-badge">PYWEB STUDIO</span>
+    <span>Year 7 Computing: Scratch to Python Lab</span>
+  </div>
+
+  <div class="controls">
+    <select id="taskSelect" title="Choose Lesson or Universal Checker"></select>
+
+    <label style="cursor:pointer;">
+      <input type="file" id="fileUpload" accept=".py,.html,.htm,.css,.txt" style="display:none;" />
+      <span style="background:var(--panel-alt);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:0.83rem;font-weight:600;display:inline-block;">
+        📂 Upload Code
+      </span>
+    </label>
+
+    <button class="btn-warning" onclick="openTeacherModal()">📊 Teacher Report (<span id="completedBadge">0</span>)</button>
+
+    <div class="student-pill" id="studentBadge" onclick="openLoginModal()" style="cursor:pointer;" title="Click to sign in with School Gmail">
+      <span>👤</span>
+      <span id="studentEmailDisplay">Sign in (School Gmail)</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT PANE: Scratch Prototype & Lesson Guide -->
+  <section class="pane">
+    <div class="pane-header">
+      <span>1. Lesson & Scratch 3.0 Guide</span>
+      <span id="lessonTag" style="color:var(--accent);">LESSON 1</span>
+    </div>
+    <div class="pane-body" id="lessonContainer"></div>
+  </section>
+
+  <!-- CENTER PANE: Code Editor -->
+  <section class="pane">
+    <div class="pane-header">
+      <span id="editorFileLabel">lesson1_jokes.py</span>
+      <span style="font-size:0.75rem;"><span class="status-dot" id="pyStatusDot"></span> <span id="pyStatusText">Loading Python...</span></span>
+    </div>
+    <textarea id="codeEditor" spellcheck="false" placeholder="Write or upload your Python (.py) or HTML/CSS code here..."></textarea>
+    <div class="editor-toolbar">
+      <div style="display:flex;gap:6px;">
+        <button onclick="resetStarterCode()">↺ Reset Starter</button>
+        <button onclick="downloadStudentCode()">⬇ Save .py/.html</button>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-primary" onclick="runCodeOnly()">▶ Run</button>
+        <button class="btn-success" onclick="checkAndMarkCode()">✓ Check & Mark</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT PANE: Console & Automated Self-Marking Feedback -->
+  <section class="pane">
+    <div class="pane-header">
+      <span>3. Output & Self-Marking Feedback</span>
+      <span id="webhookStatus" style="font-size:0.72rem;color:var(--muted);">Local Mode</span>
+    </div>
+    <div class="pane-body">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--muted);margin-bottom:4px;">CONSOLE / LIVE PREVIEW</div>
+      <pre id="consoleOut">Ready. Click "▶ Run" to test or "✓ Check & Mark" for instant feedback.</pre>
+      <iframe id="htmlPreview" sandbox="allow-scripts"></iframe>
+
+      <div class="feedback-card" id="feedbackPanel">
+        <div class="score-header">
+          <strong style="font-size:0.92rem;">Self-Marking Report</strong>
+          <span class="score-badge warn" id="scoreBadge">Not Checked</span>
+        </div>
+        <div id="feedbackList">
+          <div class="fb-item fb-tip">Upload a file or write your solution in the editor, then click <strong>Check & Mark</strong> to receive automated feedback and log progress to your teacher.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- SCHOOL GMAIL LOGIN MODAL -->
+<div class="modal-backdrop" id="loginModal">
+  <div class="modal">
+    <h3>🎓 School Gmail Verification</h3>
+    <p>Enter your school Google email address so your completed Year 7 Python tasks and teacher feedback are logged under your name.</p>
+    <div id="gsiButtonContainer" style="margin-bottom:12px;"></div>
+    <div class="form-group">
+      <label>Student Full Name</label>
+      <input type="text" id="inputStudentName" placeholder="e.g. Amina Patel" />
+    </div>
+    <div class="form-group">
+      <label>School Gmail Address</label>
+      <input type="email" id="inputStudentEmail" placeholder="e.g. amina.patel@school.edu" />
+    </div>
+    <div id="loginError" style="color:#f87171;font-size:0.8rem;margin-bottom:8px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button onclick="closeModal('loginModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveManualLogin()">Confirm School Gmail</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEACHER TELEMETRY & PROGRESS REPORT MODAL -->
+<div class="modal-backdrop" id="teacherModal">
+  <div class="modal">
+    <h3>📊 Student Progress & Teacher Feedback Dispatch</h3>
+    <p>Summary of completed tasks, code quality scores, and areas of improvement ready to send to your teacher.</p>
+    <div id="teacherSummaryBox" style="background:#090d16;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:0.84rem;margin-bottom:12px;line-height:1.55;"></div>
+
+    <div class="form-group">
+      <label>Google Apps Script Webhook URL (Auto-configured via Google Sites URL)</label>
+      <input type="text" id="webhookInput" placeholder="https://script.google.com/macros/s/.../exec" />
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button onclick="closeModal('teacherModal')">Close</button>
+      <button onclick="copyReportForClassroom()">📋 Copy for Google Classroom</button>
+      <button class="btn-success" onclick="dispatchReportToTeacher()">🚀 Send Report to Teacher</button>
+    </div>
+    <div id="dispatchStatus" style="margin-top:8px;font-size:0.82rem;color:#4ade80;"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// 1. CURRICULUM DATA: YEAR 7 COMPUTING (LESSONS 1-7) + UNIVERSAL CHECKERS
+// ============================================================================
+const CURRICULUM = [
+  {
+    id: "lesson1",
+    tag: "LESSON 1",
+    title: "Lesson 1: Sequence, Output & Syntax (Jokes)",
+    filename: "lesson1_jokes.py",
+    mode: "python",
+    desc: "Translate Scratch 'say' blocks into Python print() statements. Fix the 3 deliberate syntax errors in the PRIMM starter code, or level up to the MAT ASCII Robot banner!",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-looks", text: "say [Why did the computer sneeze?] for (2) secs" },
+      { cls: "s-looks", text: "say [Because it had a virus!] for (2) secs" },
+      { cls: "s-looks", text: "say [Haha! Get it?] for (2) secs" }
+    ],
+    tiers: {
+      starter: `# 1. PRIMM STARTER FILE: Buggy Joke (3 Deliberate Syntax Errors to Fix)\nPrint("Why did the computer sneeze?")\nprint("Because it had a virus!)\nprint(Haha!)`,
+      core: `# 2. CORE EXPECTED SOLUTION: Multi-Line Comedy Routine with \\n\nprint("Why did the computer sneeze?")\nprint("Because it had a virus!\\n")\nprint("Why did the computer go to the doctor?")\nprint("Because it had a bad byte!\\nHaha!")`,
+      mat: `# 3. MAT EXTENSION SOLUTION: ASCII Art Robot Banner\nprint("  +-------+  ")\nprint("  | [o_o] |  ")\nprint("  |  \\\\_/  |  <-- \\"Beep Boop! Ready to code!\\"")\nprint("  +-------+  ")`
+    },
+    checklist: [
+      "Use lowercase print() (Python is case-sensitive)",
+      "Enclose all text strings inside matching quotation marks \" \"",
+      "Output at least 3 lines of comedy or ASCII robot art"
+    ],
+    testInputs: [],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 40; checks.push({ ok: true, msg: "Syntax valid: All 3 PRIMM syntax errors fixed!" }); }
+      else { checks.push({ err: true, msg: "Syntax Error: " + astInfo.syntaxError }); }
+
+      if (astInfo.calls.includes("print") && astInfo.printCount >= 3) {
+        score += 35; checks.push({ ok: true, msg: `Used print() ${astInfo.printCount} times for multi-line output.` });
+      } else {
+        checks.push({ tip: true, msg: "Use at least 3 print() statements to tell the complete joke." });
+      }
+
+      if (output.trim().length >= 25) {
+        score += 25; checks.push({ ok: true, msg: "Program produced clear comedy/banner output." });
+      } else {
+        checks.push({ tip: true, msg: "Output is very short—make sure your punchline prints!" });
+      }
+      return { score, checks };
+    }
+  },
+  {
+    id: "lesson2",
+    tag: "LESSON 2",
+    title: "Lesson 2: Variables, input() & Concatenation",
+    filename: "lesson2_greeter.py",
+    mode: "python",
+    desc: "Store user answers in variables using input() and join strings together with + or f-strings to build an interactive greeter or Mad-Libs story.",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-sensing", text: "ask [What is your name?] and wait" },
+      { cls: "s-variables", text: "set [name v] to (answer)" },
+      { cls: "s-sensing", text: "ask [What is your favourite hobby?] and wait" },
+      { cls: "s-variables", text: "set [hobby v] to (answer)" },
+      { cls: "s-looks", text: "say (join [Hello ] (join (name) (join [! I love ] (join (hobby) [ too!])))) for (3) secs" }
+    ],
+    tiers: {
+      starter: `# 1. SEND / EAL SCAFFOLDED STARTER TEMPLATE\nhero_name = input("Enter your superhero name: ")\nsuperpower = input("Enter your superpower: ")\n# Complete the print line below using + concatenation:\nprint("Watch out! " + hero_name + " is using " + superpower + "!")`,
+      core: `# 2. CORE EXPECTED SOLUTION: 3-Question Interactive Profile Builder\nname = input("What is your name? ")\nhobby = input("What is your favourite hobby? ")\nfood = input("What is your favourite food? ")\n\nprint("\\n--- STUDENT PROFILE ---")\nprint("Hello " + name + "!")\nprint("It is awesome that you enjoy " + hobby + " and love eating " + food + ".")`,
+      mat: `# 3. MAT EXTENSION SOLUTION: 5-Variable Mini Mad-Libs Adventure\nhero = input("Name a hero: ")\nplace = input("Name a city or planet: ")\nadjective = input("Enter a funny adjective: ")\nmonster = input("Name a creature: ")\nitem = input("Name an everyday object: ")\n\nprint(f"\\nOne morning in {place}, {hero} spotted a {adjective} {monster}!")\nprint(f"Quickly, {hero} grabbed a {item} and saved the day.")`
+    },
+    checklist: [
+      "Use input() at least twice to collect user responses",
+      "Store responses in clear snake_case variables (e.g. hero_name, hobby)",
+      "Combine variables into output using + concatenation or f-strings"
+    ],
+    testInputs: ["Alex", "Coding", "Pizza", "Dragon", "Shield"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 30; checks.push({ ok: true, msg: "Clean Python syntax." }); }
+      else { return { score: 0, checks: [{ err: true, msg: "Syntax Error: " + astInfo.syntaxError }] }; }
+
+      const inputCount = (code.match(/\binput\s*\(/g) || []).length;
+      if (inputCount >= 2) {
+        score += 30; checks.push({ ok: true, msg: `Collected ${inputCount} user inputs with input().` });
+      } else {
+        checks.push({ tip: true, msg: "Ask at least 2 questions using input()." });
+      }
+
+      if (astInfo.variables.length >= 2) {
+        score += 20; checks.push({ ok: true, msg: `Created variables: ${astInfo.variables.join(", ")}.` });
+      } else {
+        checks.push({ tip: true, msg: "Store answers in at least 2 named variables." });
+      }
+
+      if (output.includes("Alex") || output.includes("Coding")) {
+        score += 20; checks.push({ ok: true, msg: "Output successfully personalized with user input!" });
+      } else {
+        checks.push({ tip: true, msg: "Make sure your print() statement outputs the user's variable values." });
+      }
+      return { score, checks };
+    }
+  },
+  {
+    id: "lesson3",
+    tag: "LESSON 3",
+    title: "Lesson 3: Data Types, Casting & Pocket Calculator",
+    filename: "lesson3_calculator.py",
+    mode: "python",
+    desc: "Convert text inputs into numbers using int() or float() so Python performs real arithmetic instead of joining strings ('5' + '3' = '53').",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-sensing", text: "ask [Enter the rectangle length:] and wait" },
+      { cls: "s-variables", text: "set [length v] to (answer)" },
+      { cls: "s-sensing", text: "ask [Enter the rectangle width:] and wait" },
+      { cls: "s-variables", text: "set [width v] to (answer)" },
+      { cls: "s-variables", text: "set [area v] to ((length) * (width))" },
+      { cls: "s-looks", text: "say (join [The area is: ] (area)) for (3) secs" }
+    ],
+    tiers: {
+      starter: `# GUIDED TRANSLATION: Rectangle Area Calculator\nlength = int(input("Enter the rectangle length: "))\nwidth = int(input("Enter the rectangle width: "))\narea = length * width\nprint("The area is:", area)`,
+      core: `# CORE EXPECTED SOLUTION: Snack Shop Change Calculator (float + int)\nitem_price = float(input("Enter the price of one snack (e.g. 1.75): "))\nquantity = int(input("How many snacks are you buying? "))\ntotal_cost = item_price * quantity\nchange = 10.00 - total_cost\n\nprint("Total cost: GBP", round(total_cost, 2))\nprint("Change from GBP 10.00: GBP", round(change, 2))`,
+      mat: `# MAT EXTENSION SOLUTION: Multi-Shape Geometry Calculator\nbase = float(input("Enter triangle base: "))\nheight = float(input("Enter triangle height: "))\ntriangle_area = 0.5 * base * height\n\ndiameter = float(input("Enter circle diameter: "))\ncircumference = round(3.14159 * diameter, 2)\n\nprint("Triangle Area:", triangle_area)\nprint("Circle Circumference (2 d.p.):", circumference)`
+    },
+    checklist: [
+      "Cast user inputs with int() or float()",
+      "Perform arithmetic (*, +, -, or /)",
+      "Print the calculated result clearly"
+    ],
+    testInputs: ["4", "5", "6", "10"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 30; checks.push({ ok: true, msg: "Valid Python syntax." }); }
+      else { return { score: 0, checks: [{ err: true, msg: "Syntax Error: " + astInfo.syntaxError }] }; }
+
+      if (/\b(int|float)\s*\(/.test(code)) {
+        score += 35; checks.push({ ok: true, msg: "Used int() / float() type casting to prevent string concatenation bugs." });
+      } else {
+        checks.push({ err: true, msg: "Missing int() or float()! Without casting, input() stays a string." });
+      }
+
+      if (/[\*\+\-\/]/.test(code)) {
+        score += 20; checks.push({ ok: true, msg: "Arithmetic calculation detected." });
+      } else {
+        checks.push({ tip: true, msg: "Include an arithmetic calculation (*, +, -, or /)." });
+      }
+
+      if (/\d+/.test(output)) {
+        score += 15; checks.push({ ok: true, msg: "Numeric result displayed in console output." });
+      } else {
+        checks.push({ tip: true, msg: "Ensure the calculated number is printed out." });
+      }
+      return { score, checks };
+    }
+  },
+  {
+    id: "lesson4",
+    tag: "LESSON 4",
+    title: "Lesson 4: Selection (if, elif, else) & Indentation",
+    filename: "lesson4_selection.py",
+    mode: "python",
+    desc: "Use if, elif, and else with a colon (:) and 4-space indentation to build a Mood Responder or 3-Question Computing Quiz.",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-sensing", text: "ask [How are you feeling today?] and wait" },
+      { cls: "s-variables", text: "set [mood v] to (answer)" },
+      { cls: "s-control", text: "if <(mood) = [happy]> then" },
+      { cls: "s-looks s-indent", text: "say [Awesome! Keep smiling!] for (2) secs" },
+      { cls: "s-control", text: "else" },
+      { cls: "s-looks s-indent", text: "say [Hope your day improves soon!] for (2) secs" }
+    ],
+    tiers: {
+      starter: `# 1. GUIDED TRANSLATION: 2-Way Mood-Responder\nmood = input("How are you feeling today? ")\n\nif mood == "happy":\n    print("Awesome! Keep smiling!")\nelse:\n    print("Hope your day improves soon!")`,
+      core: `# 2. CORE EXPECTED SOLUTION: 3-Question Computing Quiz\nscore = 0\n\nq1 = input("Q1: What symbol joins two strings in Python? ")\nif q1 == "+":\n    print("Correct!")\n    score = score + 1\nelse:\n    print("Not quite! The + symbol joins strings.")\n\nq2 = input("Q2: How many spaces are in a standard Python indent? ")\nif q2 == "4":\n    print("Spot on!")\n    score = score + 1\nelse:\n    print("Incorrect. Python uses 4 spaces.")\n\nq3 = input("Q3: What punctuation mark goes at the end of an if line? ")\nif q3 == ":":\n    print("Brilliant!")\n    score = score + 1\nelse:\n    print("Remember to use a colon (:).")\n\nprint("Final Quiz Score:", score, "out of 3")`,
+      mat: `# 3. MAT EXTENSION SOLUTION: 4-Mood Responder using elif\nfeeling = input("Tell me your mood (happy / tired / hungry / bored): ")\n\nif feeling == "happy":\n    print("Fantastic! Share that good energy!")\nelif feeling == "tired":\n    print("Get some rest and drink some water.")\nelif feeling == "hungry":\n    print("Time for a healthy snack!")\nelif feeling == "bored":\n    print("Why not build a new Scratch or Python game?")\nelse:\n    print("Thanks for telling me how you feel!")`
+    },
+    checklist: [
+      "Use == for comparison (not single =)",
+      "End every if / elif / else line with a colon (:)",
+      "Indent code inside branches by 4 spaces"
+    ],
+    testInputs: ["happy", "+", "4", ":"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 35; checks.push({ ok: true, msg: "Indentation and colons are syntactically valid!" }); }
+      else { return { score: 0, checks: [{ err: true, msg: "Syntax/Indentation Error: " + astInfo.syntaxError }] }; }
+
+      if (astInfo.hasIf) {
+        score += 35; checks.push({ ok: true, msg: "Conditional selection (if/else) structure detected." });
+      } else {
+        checks.push({ err: true, msg: "Use an if / else statement to make decisions." });
+      }
+
+      if (code.includes("==")) {
+        score += 15; checks.push({ ok: true, msg: "Used == comparison operator properly." });
+      } else {
+        checks.push({ tip: true, msg: "Use == when comparing values inside an if condition." });
+      }
+
+      if (output.trim().length > 0) {
+        score += 15; checks.push({ ok: true, msg: "Branch executed and produced output." });
+      }
+      return { score, checks };
+    }
+  },
+  {
+    id: "lesson5",
+    tag: "LESSON 5",
+    title: "Lesson 5: Robust Inputs & String Methods (.lower / .strip)",
+    filename: "lesson5_string_methods.py",
+    mode: "python",
+    desc: "Unlike Scratch, Python is case-sensitive ('London' != 'london'). Use .strip() and .lower() so user answers match reliably regardless of capitalization or extra spaces.",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-sensing", text: "ask [What is the capital city of the UK?] and wait" },
+      { cls: "s-control", text: "if <(answer) = [london]> then  (matches LONDON, London, london)" },
+      { cls: "s-looks s-indent", text: "say [Correct! Well done!] for (2) secs" },
+      { cls: "s-control", text: "else" },
+      { cls: "s-looks s-indent", text: "say [Not quite, the answer is London!] for (2) secs" }
+    ],
+    tiers: {
+      starter: `# 1. PRIMM STRING METHODS MINI-LAB\nsample = "  nAiRoBi cItY  "\nprint("Original:   ", sample)\nprint(".lower():   ", sample.lower())\nprint(".upper():   ", sample.upper())\nprint(".title():   ", sample.title())\nprint(".strip():   ", sample.strip().title())`,
+      core: `# 2. CASE-PROOF TRIVIA BOT (Equivalent to Scratch Prototype)\ncapital = input("What is the capital city of the UK? ").strip().lower()\n\nif capital == "london":\n    print("Correct! Well done!")\nelse:\n    print("Not quite, the answer is London!")`,
+      mat: `# 3. CHATBOT INITIAL SETUP STARTER FILE\nprint("=== Welcome to My Year 7 Chatbot ===")\nuser_name = input("What is your name? ").strip().title()\nprint("Nice to meet you, " + user_name + "!")\n\ntopic = input("Do you prefer Python or Scratch? ").strip().lower()\nif topic == "python":\n    print("Text-based coding unlocks real-world superpowers!")\nelif topic == "scratch":\n    print("Visual blocks are awesome for rapid prototyping!")\nelse:\n    print("Both are great ways to learn computing!")`
+    },
+    checklist: [
+      "Use .lower() or .upper() to normalize text case",
+      "Use .strip() to remove accidental leading/trailing spaces",
+      "Test with uppercase input like 'LONDON'"
+    ],
+    testInputs: ["  LONDON  ", "Amina", "PYTHON"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 30; checks.push({ ok: true, msg: "Clean Python syntax." }); }
+      else { return { score: 0, checks: [{ err: true, msg: "Syntax Error: " + astInfo.syntaxError }] }; }
+
+      if (/\.lower\(\)|\.upper\(\)/.test(code)) {
+        score += 35; checks.push({ ok: true, msg: "Used .lower() / .upper() for case-insensitive matching." });
+      } else {
+        checks.push({ err: true, msg: "Add .lower() to your input so 'LONDON' and 'london' both work!" });
+      }
+
+      if (/\.strip\(\)/.test(code)) {
+        score += 20; checks.push({ ok: true, msg: "Used .strip() to clean accidental spaces." });
+      } else {
+        checks.push({ tip: true, msg: "Tip: Chain .strip().lower() to remove extra spaces around answers." });
+      }
+
+      if (output.trim().length > 0) {
+        score += 15; checks.push({ ok: true, msg: "Verified output with uppercase test input." });
+      }
+      return { score, checks };
+    }
+  },
+  {
+    id: "lesson6",
+    tag: "LESSON 6",
+    title: "Lesson 6: Iteration — while Loops & for Loops",
+    filename: "lesson6_loops.py",
+    mode: "python",
+    desc: "Translate Scratch 'repeat until' into a Python while loop to build a Secret Number Guesser that tracks attempts and gives 'Too low!' / 'Too high!' hints.",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-variables", text: "set [secret v] to [7]   |   set [guess v] to [0]" },
+      { cls: "s-control", text: "repeat until <(guess) = (secret)>" },
+      { cls: "s-sensing s-indent", text: "ask [Guess the secret number (1-10):] and wait" },
+      { cls: "s-variables s-indent", text: "set [guess v] to (answer)" },
+      { cls: "s-control s-indent", text: "if <(guess) < (secret)> then → say [Too low!]" },
+      { cls: "s-control s-indent", text: "if <(guess) > (secret)> then → say [Too high!]" },
+      { cls: "s-looks", text: "say [Spot on! You guessed it!] for (2) secs" }
+    ],
+    tiers: {
+      starter: `# 1. COUNT-CONTROLLED FOR LOOP: 3-Second Launch Countdown\nfor i in range(3, 0, -1):\n    print("Starting in...", i)\nprint("GO!")`,
+      core: `# 2. CORE EXPECTED SOLUTION: Secret Number Guesser (while loop + attempts)\nsecret = 7\nguess = 0\nattempts = 0\n\nwhile guess != secret:\n    guess = int(input("Guess the secret number (1-10): "))\n    attempts = attempts + 1\n    if guess < secret:\n        print("Too low!")\n    elif guess > secret:\n        print("Too high!")\n\nprint("Spot on! You guessed it in", attempts, "attempts!")`,
+      mat: `# 3. MAT EXTENSION SOLUTION: Random Secret Number with 5-Guess Limit\nimport random\n\nrandom_secret = random.randint(1, 20)\nplayer_guess = 0\ntries = 0\n\nprint("--- CHALLENGE MODE: Guess between 1 and 20 (Max 5 tries) ---")\nwhile player_guess != random_secret and tries < 5:\n    player_guess = int(input("Enter your guess: "))\n    tries = tries + 1\n    if player_guess < random_secret:\n        print("Too low! Tries left:", 5 - tries)\n    elif player_guess > random_secret:\n        print("Too high! Tries left:", 5 - tries)\n\nif player_guess == random_secret:\n    print("Winner! You found", random_secret, "in", tries, "tries!")\nelse:\n    print("Game over! The secret number was", random_secret)`
+    },
+    checklist: [
+      "Use a while or for loop for repetition",
+      "Update the loop condition inside the loop to avoid infinite loops",
+      "Provide feedback inside the loop (e.g. Too low / Too high)"
+    ],
+    testInputs: ["3", "9", "7", "7", "7"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 30; checks.push({ ok: true, msg: "Loop syntax and indentation valid." }); }
+      else { return { score: 0, checks: [{ err: true, msg: "Syntax Error: " + astInfo.syntaxError }] }; }
+
+      if (astInfo.hasLoop) {
+        score += 40; checks.push({ ok: true, msg: "Iteration (while / for loop) implemented." });
+      } else {
+        checks.push({ err: true, msg: "Missing a while or for loop!" });
+      }
+
+      if (astInfo.hasIf) {
+        score += 15; checks.push({ ok: true, msg: "Conditional hints inside loop detected." });
+      } else {
+        checks.push({ tip: true, msg: "Add if / elif checks inside the loop for 'Too low!' and 'Too high!'." });
+      }
+
+      if (output.trim().length > 0) {
+        score += 15; checks.push({ ok: true, msg: "Loop executed cleanly without hanging." });
+      }
+      return { score, checks };
+    }
+  },
+  {
+    id: "lesson7",
+    tag: "LESSON 7",
+    title: "Lesson 7: Capstone Project — RoboBuddy 3000 Chatbot",
+    filename: "robobuddy_capstone.py",
+    mode: "python",
+    desc: "Combine sequence, variables, int() casting, if/elif/else selection, .strip().lower(), and a while replay loop into a complete interactive chatbot!",
+    scratch: [
+      { cls: "s-events", text: "when green flag clicked" },
+      { cls: "s-looks", text: "say [Welcome to RoboBuddy 3000!] | set [play_again v] to [yes]" },
+      { cls: "s-control", text: "repeat until <(play_again) = [no]>" },
+      { cls: "s-sensing s-indent", text: "ask [What is your name?] → set [name v] to (answer)" },
+      { cls: "s-control s-indent", text: "if <(mood) = [happy]> then ... else if <(mood) = [tired]> ..." },
+      { cls: "s-operators s-indent", text: "set [years_to_18 v] to ((18) - (answer))" },
+      { cls: "s-sensing s-indent", text: "ask [Would you like to chat again? (yes/no)]" },
+      { cls: "s-looks", text: "say (join [Goodbye, ] (join (name) [! Shutting down...]))" }
+    ],
+    tiers: {
+      starter: `# SEND / EAL SCAFFOLDED CHATBOT SKELETON\nprint("=== Welcome to My Chatbot ===")\nplay_again = "yes"\n\nwhile play_again.strip().lower() == "yes":\n    name = input("What is your name? ").strip().title()\n    print("Hello " + name + "!")\n\n    mood = input("How are you feeling? (happy/tired): ").strip().lower()\n    if mood == "happy":\n        print("That is great news!")\n    elif mood == "tired":\n        print("Make sure you rest tonight!")\n    else:\n        print("Thanks for telling me!")\n\n    age = int(input("How old are you? "))\n    years_left = 18 - age\n    print("You have", years_left, "years until you turn 18.")\n\n    play_again = input("Chat again? (yes/no): ")\n\nprint("Goodbye " + name + "!")`,
+      core: `# CORE EXPECTED CAPSTONE SOLUTION: RoboBuddy 3000\nprint("=== Welcome to RoboBuddy 3000 ===")\nplay_again = "yes"\n\nwhile play_again.strip().lower() == "yes":\n    name = input("What is your name? ").strip().title()\n    print(f"Nice to meet you, {name}!")\n\n    mood = input(f"How are you feeling today, {name}? (happy/tired/stressed): ").strip().lower()\n    if mood == "happy":\n        print("That is brilliant! Keep that positive energy going.")\n    elif mood == "tired":\n        print("Make sure you get an early night tonight!")\n    elif mood == "stressed":\n        print("Take a deep breath - you have got this!")\n    else:\n        print(f"Thanks for sharing that you feel '{mood}'.")\n\n    age = int(input("How old are you? "))\n    years_to_18 = 18 - age\n    if years_to_18 > 0:\n        print(f"Cool! You have {years_to_18} years until you turn 18.")\n    else:\n        print("You are already 18 or older!")\n\n    hobby = input("What is your favourite hobby? ").strip().lower()\n    if hobby == "coding" or hobby == "programming":\n        print("No way! Coding is my favourite thing too!")\n    else:\n        print(f"{hobby.title()} sounds like a lot of fun!")\n\n    play_again = input("Would you like to chat again? (yes/no): ")\n\nprint(f"Goodbye, {name}! Shutting down...")`,
+      mat: `# MAT EXTENDED CAPSTONE SOLUTION: Randomized Replies & Crash-Proof Input\nimport random\n\njokes = [\n    "Why do programmers prefer dark mode? Because light attracts bugs!",\n    "What do you call 8 hobbits? A hobbyte!",\n    "Why was the computer cold? It left its Windows open!"\n]\n\nprint("=== Welcome to RoboBuddy 3000 (Pro Edition) ===")\nplay_again = "yes"\n\nwhile play_again.strip().lower() == "yes":\n    name = input("What is your name? ").strip().title()\n    print(f"Systems online! Hello, {name}.")\n\n    valid_age = False\n    while not valid_age:\n        try:\n            age = int(input("How old are you? "))\n            valid_age = True\n        except ValueError:\n            print("Oops! Please enter your age using whole digits (e.g. 12).")\n\n    if age < 18:\n        print(f"You have {18 - age} years until you turn 18.")\n    else:\n        print("You are 18 or older!")\n\n    want_joke = input("Would you like to hear a random computing joke? (yes/no): ").strip().lower()\n    if want_joke == "yes":\n        print("RoboBuddy says:", random.choice(jokes))\n    else:\n        print("No problem! Maybe next time.")\n\n    play_again = input("Would you like to chat again? (yes/no): ")\n\nprint(f"Goodbye, {name}! Shutting down...")`
+    },
+    checklist: [
+      "Outer while loop controlled by play_again == 'yes'",
+      "String cleaning with .strip() and .lower() / .title()",
+      "Integer age calculation (18 - age) using int()",
+      "Multi-branch if / elif / else conversation responses"
+    ],
+    testInputs: ["Jordan", "happy", "12", "coding", "no"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) { score += 20; checks.push({ ok: true, msg: "Syntax valid across full Capstone program." }); }
+      else { return { score: 0, checks: [{ err: true, msg: "Syntax Error: " + astInfo.syntaxError }] }; }
+
+      if (astInfo.hasLoop) { score += 20; checks.push({ ok: true, msg: "Replay while loop present." }); }
+      else { checks.push({ err: true, msg: "Add a while loop so the user can chat again." }); }
+
+      if (astInfo.hasIf) { score += 20; checks.push({ ok: true, msg: "Selection (if/elif/else) logic verified." }); }
+      else { checks.push({ err: true, msg: "Use if / elif / else for chatbot personality branches." }); }
+
+      if (/\bint\s*\(/.test(code)) { score += 20; checks.push({ ok: true, msg: "Integer casting int() used for age math." }); }
+      else { checks.push({ tip: true, msg: "Use int(input(...)) to calculate years until 18." }); }
+
+      if (/\.lower\(\)|\.strip\(\)/.test(code)) { score += 20; checks.push({ ok: true, msg: "Robust string methods (.strip / .lower) used." }); }
+      else { checks.push({ tip: true, msg: "Use .strip().lower() on user inputs for reliability." }); }
+
+      return { score, checks };
+    }
+  },
+  {
+    id: "universal_python",
+    tag: "UNIVERSAL",
+    title: "★ Universal Python Checker (Any .py Task)",
+    filename: "custom_task.py",
+    mode: "python",
+    desc: "Upload or paste ANY Python script. Inspects Abstract Syntax Tree (AST), PEP 8 snake_case naming, comments/docstrings, unused variables, nesting depth, and safe exception handling.",
+    scratch: [
+      { cls: "s-operators", text: "AST Inspector: Checks syntax, variables, functions & loops" },
+      { cls: "s-variables", text: "Code Quality: Checks PEP 8 snake_case & unused variables" },
+      { cls: "s-control", text: "Safety Check: Flags eval() or bare except: blocks" }
+    ],
+    tiers: {
+      starter: `# Upload any .py file or write custom Python code here!\ndef greet_student(student_name):\n    # Return a personalized greeting\n    clean_name = student_name.strip().title()\n    return f"Welcome to Python, {clean_name}!"\n\nprint(greet_student("alex"))`,
+      core: `# Upload any .py file or write custom Python code here!\ndef greet_student(student_name):\n    # Return a personalized greeting\n    clean_name = student_name.strip().title()\n    return f"Welcome to Python, {clean_name}!"\n\nprint(greet_student("alex"))`,
+      mat: `# Upload any .py file or write custom Python code here!\ndef greet_student(student_name):\n    # Return a personalized greeting\n    clean_name = student_name.strip().title()\n    return f"Welcome to Python, {clean_name}!"\n\nprint(greet_student("alex"))`
+    },
+    checklist: [
+      "Zero syntax or runtime exceptions",
+      "PEP 8 snake_case variable and function names",
+      "Helpful comments (#) or docstrings explaining logic",
+      "No unused variables or unsafe eval() calls"
+    ],
+    testInputs: ["TestUser", "10", "yes", "no"],
+    evaluate(code, astInfo, output) {
+      const checks = [];
+      let score = 0;
+      if (!astInfo.syntaxError) {
+        score += 35;
+        checks.push({ ok: true, msg: "Syntax & AST parse succeeded with 0 errors." });
+      } else {
+        return { score: 0, checks: [{ err: true, msg: "Syntax Error: " + astInfo.syntaxError }] };
+      }
+
+      const badNames = astInfo.variables.filter(v => /[A-Z]/.test(v) && v !== v.toUpperCase());
+      if (badNames.length === 0) {
+        score += 20;
+        checks.push({ ok: true, msg: "PEP 8 Naming: All variable names follow snake_case." });
+      } else {
+        checks.push({ tip: true, msg: `PEP 8 Style: Consider renaming camelCase variables (${badNames.join(", ")}) to snake_case.` });
+      }
+
+      if (code.includes("#") || astInfo.hasDocstring) {
+        score += 15;
+        checks.push({ ok: true, msg: "Documentation: Code includes comments or docstrings." });
+      } else {
+        checks.push({ tip: true, msg: "Readability: Add # comments to explain what your code does." });
+      }
+
+      if (astInfo.unusedVars.length === 0) {
+        score += 15;
+        checks.push({ ok: true, msg: "Clean Memory: No unused variables detected." });
+      } else {
+        checks.push({ tip: true, msg: `Unused variables detected: ${astInfo.unusedVars.join(", ")}.` });
+      }
+
+      if (!/\beval\s*\(/.test(code) && !/except\s*:/.test(code)) {
+        score += 15;
+        checks.push({ ok: true, msg: "Best Practices: No unsafe eval() or bare except: blocks." });
+      } else {
+        checks.push({ err: true, msg: "Avoid eval() or bare except: blocks; catch specific errors like ValueError." });
+      }
+
+      return { score, checks };
+    }
+  },
+  {
+    id: "universal_web",
+    tag: "WEB LAB",
+    title: "★ Universal HTML/CSS Checker (Any .html / .css Task)",
+    filename: "index.html",
+    mode: "html",
+    desc: "Upload or paste ANY HTML/CSS webpage. Renders a live preview and audits semantic HTML5 tags, image alt accessibility, heading hierarchy, and CSS syntax.",
+    scratch: [
+      { cls: "s-events", text: "HTML5 Structure: Checks <!DOCTYPE html>, <header>, <main>, <footer>" },
+      { cls: "s-sensing", text: "Accessibility: Verifies <img> alt attributes & <h1> heading" },
+      { cls: "s-operators", text: "CSS Audit: Checks matching { } braces & modern layout rules" }
+    ],
+    tiers: {
+      starter: `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>My Computing Portfolio</title>\n  <style>\n    body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; padding: 20px; }\n    header { background: #0284c7; color: white; padding: 16px; border-radius: 8px; }\n    main { margin-top: 16px; line-height: 1.6; }\n  </style>\n</head>\n<body>\n  <header>\n    <h1>Welcome to My Year 7 Web Page</h1>\n  </header>\n  <main>\n    <p>I am learning HTML, CSS, and Python!</p>\n  </main>\n</body>\n</html>`,
+      core: `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>My Computing Portfolio</title>\n  <style>\n    body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; padding: 20px; }\n    header { background: #0284c7; color: white; padding: 16px; border-radius: 8px; }\n    main { margin-top: 16px; line-height: 1.6; }\n  </style>\n</head>\n<body>\n  <header>\n    <h1>Welcome to My Year 7 Web Page</h1>\n  </header>\n  <main>\n    <p>I am learning HTML, CSS, and Python!</p>\n  </main>\n</body>\n</html>`,
+      mat: `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>My Computing Portfolio</title>\n  <style>\n    body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; padding: 20px; }\n    header { background: #0284c7; color: white; padding: 16px; border-radius: 8px; }\n    main { margin-top: 16px; line-height: 1.6; }\n  </style>\n</head>\n<body>\n  <header>\n    <h1>Welcome to My Year 7 Web Page</h1>\n  </header>\n  <main>\n    <p>I am learning HTML, CSS, and Python!</p>\n  </main>\n</body>\n</html>`
+    },
+    checklist: [
+      "Include <!DOCTYPE html> and semantic landmarks (<header>, <main>, <footer>)",
+      "Use a clear <h1> main heading",
+      "Ensure every <img> tag has an alt='' description",
+      "Keep CSS curly braces { } balanced"
+    ],
+    testInputs: [],
+    evaluateHtml(code) {
+      const checks = [];
+      let score = 0;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(code, "text/html");
+
+      if (/<!doctype\s+html>/i.test(code)) {
+        score += 20; checks.push({ ok: true, msg: "Valid HTML5 <!DOCTYPE html> declaration found." });
+      } else {
+        checks.push({ tip: true, msg: "Add <!DOCTYPE html> at line 1 for standards-compliant rendering." });
+      }
+
+      const semanticCount = doc.querySelectorAll("header, nav, main, section, article, footer").length;
+      if (semanticCount >= 2) {
+        score += 25; checks.push({ ok: true, msg: `Semantic HTML5: Found ${semanticCount} landmark tags.` });
+      } else {
+        checks.push({ tip: true, msg: "Use semantic tags like <header>, <main>, and <footer> instead of only <div>." });
+      }
+
+      if (doc.querySelector("h1")) {
+        score += 20; checks.push({ ok: true, msg: "Heading hierarchy: Primary <h1> heading present." });
+      } else {
+        checks.push({ tip: true, msg: "Include one <h1> tag for your main page title." });
+      }
+
+      const imgs = Array.from(doc.querySelectorAll("img"));
+      const missingAlt = imgs.filter(img => !img.hasAttribute("alt"));
+      if (missingAlt.length === 0) {
+        score += 15; checks.push({ ok: true, msg: imgs.length ? "Accessibility: All <img> tags include alt text." : "Accessibility: No broken image alt attributes." });
+      } else {
+        checks.push({ err: true, msg: `Accessibility: ${missingAlt.length} <img> tag(s) missing an alt="..." attribute.` });
+      }
+
+      const openBraces = (code.match(/\{/g) || []).length;
+      const closeBraces = (code.match(/\}/g) || []).length;
+      if (openBraces === closeBraces) {
+        score += 20; checks.push({ ok: true, msg: "CSS Syntax: All curly braces { } are properly balanced." });
+      } else {
+        checks.push({ err: true, msg: `CSS Syntax Error: Unbalanced curly braces (${openBraces} '{' vs ${closeBraces} '}').` });
+      }
+
+      return { score, checks };
+    }
+  }
+];
+
+// ============================================================================
+// 2. APPLICATION STATE & URL CONFIG (FOR GOOGLE SITES EMBEDDING)
+// ============================================================================
+const urlParams = new URLSearchParams(window.location.search);
+const CONFIG = {
+  webhookUrl: urlParams.get("webhook") || localStorage.getItem("pyweb_webhook") || "",
+  schoolDomain: (urlParams.get("domain") || "").toLowerCase().trim(),
+  classPeriod: urlParams.get("class") || "Year 7 Computing",
+  clientId: urlParams.get("client_id") || ""
+};
+
+let state = {
+  currentTaskId: "lesson1",
+  currentTier: "starter",
+  pyodide: null,
+  studentEmail: localStorage.getItem("pyweb_email") || "",
+  studentName: localStorage.getItem("pyweb_name") || "",
+  progress: JSON.parse(localStorage.getItem("pyweb_progress") || "{}")
+};
+
+// ============================================================================
+// 3. INITIALIZATION & UI RENDERING
+// ============================================================================
+window.addEventListener("DOMContentLoaded", async () => {
+  populateTaskDropdown();
+  updateStudentBadge();
+  updateCompletedBadge();
+  if (CONFIG.webhookUrl) {
+    document.getElementById("webhookStatus").textContent = "Google Sheet Sync Active";
+    document.getElementById("webhookStatus").style.color = "#4ade80";
+  }
+  selectTask("lesson1");
+  initGoogleSignIn();
+  await initPyodideEngine();
+});
+
+function populateTaskDropdown() {
+  const sel = document.getElementById("taskSelect");
+  sel.innerHTML = CURRICULUM.map(t => `<option value="${t.id}">${t.title}</option>`).join("");
+  sel.addEventListener("change", (e) => selectTask(e.target.value));
+}
+
+function selectTask(taskId) {
+  state.currentTaskId = taskId;
+  state.currentTier = "starter";
+  const task = CURRICULUM.find(t => t.id === taskId);
+  document.getElementById("taskSelect").value = taskId;
+  document.getElementById("lessonTag").textContent = task.tag;
+  document.getElementById("editorFileLabel").textContent = task.filename;
+  document.getElementById("codeEditor").value = task.tiers.starter;
+
+  const isHtml = task.mode === "html";
+  document.getElementById("htmlPreview").style.display = isHtml ? "block" : "none";
+  if (isHtml) {
+    document.getElementById("htmlPreview").srcdoc = task.tiers.starter;
+  }
+
+  renderLessonPane(task);
+}
+
+function renderLessonPane(task) {
+  const container = document.getElementById("lessonContainer");
+  const scratchHtml = task.scratch.map(b => `<div class="s-block ${b.cls}">${escapeHtml(b.text)}</div>`).join("");
+  const checkHtml = task.checklist.map(c => `<li>✓ ${escapeHtml(c)}</li>`).join("");
+  const showTiers = task.id.startsWith("lesson");
+
+  container.innerHTML = `
+    <div class="lesson-title">${escapeHtml(task.title)}</div>
+    <p class="lesson-desc">${escapeHtml(task.desc)}</p>
+
+    ${showTiers ? `
+    <div class="tier-tabs">
+      <button class="tier-btn ${state.currentTier === 'starter' ? 'active' : ''}" onclick="loadTier('starter')">1. Starter / Scaffold</button>
+      <button class="tier-btn ${state.currentTier === 'core' ? 'active' : ''}" onclick="loadTier('core')">2. Core Solution</button>
+      <button class="tier-btn ${state.currentTier === 'mat' ? 'active' : ''}" onclick="loadTier('mat')">3. MAT Extension</button>
+    </div>` : ""}
+
+    <div class="scratch-box">
+      <h4>${task.mode === "python" ? "Scratch 3.0 Prototype / Reference" : "Audit Criteria"}</h4>
+      ${scratchHtml}
+    </div>
+
+    <div style="font-size:0.8rem;font-weight:700;color:var(--accent);text-transform:uppercase;">Success Checklist</div>
+    <ul class="checklist">${checkHtml}</ul>
+  `;
+}
+
+function loadTier(tier) {
+  state.currentTier = tier;
+  const task = CURRICULUM.find(t => t.id === state.currentTaskId);
+  document.getElementById("codeEditor").value = task.tiers[tier];
+  renderLessonPane(task);
+}
+
+function resetStarterCode() {
+  const task = CURRICULUM.find(t => t.id === state.currentTaskId);
+  document.getElementById("codeEditor").value = task.tiers[state.currentTier];
+}
+
+// File Upload Support (.py, .html, .css)
+document.getElementById("fileUpload").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const content = ev.target.result;
+    document.getElementById("codeEditor").value = content;
+    document.getElementById("editorFileLabel").textContent = file.name;
+    if (file.name.endsWith(".html") || file.name.endsWith(".htm") || file.name.endsWith(".css")) {
+      if (state.currentTaskId.startsWith("lesson")) {
+        selectTask("universal_web");
+        document.getElementById("codeEditor").value = content;
+        document.getElementById("editorFileLabel").textContent = file.name;
+      }
+      document.getElementById("htmlPreview").style.display = "block";
+      document.getElementById("htmlPreview").srcdoc = content;
+    }
+    checkAndMarkCode();
+  };
+  reader.readAsText(file);
+});
+
+// Tab indentation support inside textarea
+document.getElementById("codeEditor").addEventListener("keydown", function(e) {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const start = this.selectionStart;
+    const end = this.selectionEnd;
+    this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
+    this.selectionStart = this.selectionEnd = start + 4;
+  }
+});
+
+// ============================================================================
+// 4. PYODIDE PYTHON ENGINE & AST INSPECTOR
+// ============================================================================
+async function initPyodideEngine() {
+  try {
+    state.pyodide = await loadPyodide();
+    document.getElementById("pyStatusDot").classList.add("ready");
+    document.getElementById("pyStatusText").textContent = "Python 3.11 Ready";
+  } catch (err) {
+    document.getElementById("pyStatusText").textContent = "Offline Mode";
+  }
+}
+
+async function executePython(code, mockInputs = null) {
+  if (!state.pyodide) {
+    return { output: "", astInfo: { syntaxError: "Python runtime still loading. Wait 2 seconds and try again." } };
+  }
+
+  const pyScript = `
+import ast, sys, io, json, builtins
+
+user_code = ${JSON.stringify(code)}
+mock_inputs = ${JSON.stringify(mockInputs)}
+
+ast_info = {
+    "syntaxError": None,
+    "calls": [],
+    "printCount": 0,
+    "variables": [],
+    "unusedVars": [],
+    "hasIf": False,
+    "hasLoop": False,
+    "hasDocstring": False
+}
+
+try:
+    tree = ast.parse(user_code)
+    if ast.get_docstring(tree):
+        ast_info["hasDocstring"] = True
+    assigned = set()
+    used = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and ast.get_docstring(node):
+            ast_info["hasDocstring"] = True
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            ast_info["calls"].append(node.func.id)
+            if node.func.id == "print":
+                ast_info["printCount"] += 1
+        elif isinstance(node, ast.Name):
+            if isinstance(node.ctx, ast.Store):
+                assigned.add(node.id)
+            elif isinstance(node.ctx, ast.Load):
+                used.add(node.id)
+        elif isinstance(node, ast.If):
+            ast_info["hasIf"] = True
+        elif isinstance(node, (ast.While, ast.For)):
+            ast_info["hasLoop"] = True
+
+    ast_info["variables"] = sorted(list(assigned))
+    ast_info["unusedVars"] = sorted([v for v in assigned if v not in used and not v.startswith("_")])
+except SyntaxError as e:
+    ast_info["syntaxError"] = f"Line {e.lineno}: {e.msg}"
+
+stdout_buf = io.StringIO()
+old_stdout = sys.stdout
+sys.stdout = stdout_buf
+
+input_iter = iter(mock_inputs) if mock_inputs is not None else None
+
+def custom_input(prompt=""):
+    print(prompt, end="")
+    if input_iter is not None:
+        try:
+            val = next(input_iter)
+        except StopIteration:
+            val = "yes"
+        print(val)
+        return val
+    else:
+        from js import prompt as js_prompt
+        ans = js_prompt(str(prompt))
+        ans = "" if ans is None else str(ans)
+        print(ans)
+        return ans
+
+builtins.input = custom_input
+runtime_error = None
+
+if not ast_info["syntaxError"]:
+    try:
+        exec_globals = {"__name__": "__main__"}
+        exec(user_code, exec_globals)
+    except Exception as ex:
+        runtime_error = f"{type(ex).__name__}: {ex}"
+
+sys.stdout = old_stdout
+json.dumps({"output": stdout_buf.getvalue(), "astInfo": ast_info, "runtimeError": runtime_error})
+`;
+
+  const rawRes = await state.pyodide.runPythonAsync(pyScript);
+  return JSON.parse(rawRes);
+}
+
+async function runCodeOnly() {
+  const task = CURRICULUM.find(t => t.id === state.currentTaskId);
+  const code = document.getElementById("codeEditor").value;
+  const consoleEl = document.getElementById("consoleOut");
+
+  if (task.mode === "html" || code.trim().startsWith("<")) {
+    const iframe = document.getElementById("htmlPreview");
+    iframe.style.display = "block";
+    iframe.srcdoc = code;
+    consoleEl.textContent = "HTML/CSS rendered in preview frame below.";
+    return;
+  }
+
+  consoleEl.textContent = "Running Python...";
+  const res = await executePython(code, null);
+  if (res.astInfo.syntaxError) {
+    consoleEl.textContent = "❌ SyntaxError: " + res.astInfo.syntaxError;
+  } else if (res.runtimeError) {
+    consoleEl.textContent = res.output + "\n❌ Runtime Error: " + res.runtimeError;
+  } else {
+    consoleEl.textContent = res.output || "(Program finished with no printed output)";
+  }
+}
+
+async function checkAndMarkCode() {
+  const task = CURRICULUM.find(t => t.id === state.currentTaskId);
+  const code = document.getElementById("codeEditor").value;
+  const consoleEl = document.getElementById("consoleOut");
+
+  let result;
+  if (task.mode === "html" || code.trim().startsWith("<")) {
+    const iframe = document.getElementById("htmlPreview");
+    iframe.style.display = "block";
+    iframe.srcdoc = code;
+    consoleEl.textContent = "HTML/CSS rendered & audited.";
+    result = CURRICULUM.find(t => t.id === "universal_web").evaluateHtml(code);
+  } else {
+    consoleEl.textContent = "Running automated tests & AST inspection...";
+    const execRes = await executePython(code, task.testInputs);
+    if (execRes.astInfo.syntaxError) {
+      consoleEl.textContent = "❌ SyntaxError: " + execRes.astInfo.syntaxError;
+    } else if (execRes.runtimeError) {
+      consoleEl.textContent = execRes.output + "\n❌ Runtime Error: " + execRes.runtimeError;
+    } else {
+      consoleEl.textContent = execRes.output || "(No printed output)";
+    }
+    result = task.evaluate(code, execRes.astInfo, execRes.output);
+    if (execRes.runtimeError) {
+      result.score = Math.max(0, result.score - 30);
+      result.checks.push({ err: true, msg: "Runtime Error during test run: " + execRes.runtimeError });
+    }
+  }
+
+  renderFeedback(task, result, code);
+}
+
+function renderFeedback(task, result, code) {
+  const badge = document.getElementById("scoreBadge");
+  const list = document.getElementById("feedbackList");
+  const passed = result.score >= 70;
+
+  badge.textContent = `${result.score}% — ${passed ? "PASSED" : "NEEDS WORK"}`;
+  badge.className = `score-badge ${passed ? "pass" : "warn"}`;
+
+  list.innerHTML = result.checks.map(c => {
+    const cls = c.ok ? "fb-ok" : c.err ? "fb-err" : "fb-tip";
+    const icon = c.ok ? "✅" : c.err ? "❌" : "💡";
+    return `<div class="fb-item ${cls}">${icon} ${escapeHtml(c.msg)}</div>`;
+  }).join("");
+
+  const improvements = result.checks.filter(c => !c.ok).map(c => c.msg);
+
+  // Record progress locally
+  state.progress[task.id] = {
+    title: task.title,
+    score: result.score,
+    passed,
+    improvements,
+    timestamp: new Date().toISOString()
+  };
+  localStorage.setItem("pyweb_progress", JSON.stringify(state.progress));
+  updateCompletedBadge();
+
+  // Auto-sync to Google Sheet if webhook is configured
+  if (CONFIG.webhookUrl) {
+    sendToGoogleSheet("TASK_CHECK", task.title, result.score, passed, improvements, code);
+  }
+}
+
+// ============================================================================
+// 5. SCHOOL GMAIL LOGIN & TEACHER TELEMETRY DISPATCH
+// ============================================================================
+function initGoogleSignIn() {
+  if (!CONFIG.clientId || typeof google === "undefined") return;
+  google.accounts.id.initialize({
+    client_id: CONFIG.clientId,
+    callback: (response) => {
+      const payload = JSON.parse(atob(response.credential.split(".")[1]));
+      if (CONFIG.schoolDomain && !payload.email.toLowerCase().endsWith("@" + CONFIG.schoolDomain)) {
+        alert(`Please sign in with your @${CONFIG.schoolDomain} school Google account.`);
+        return;
+      }
+      state.studentEmail = payload.email;
+      state.studentName = payload.name || payload.email.split("@")[0];
+      localStorage.setItem("pyweb_email", state.studentEmail);
+      localStorage.setItem("pyweb_name", state.studentName);
+      updateStudentBadge();
+      closeModal("loginModal");
+    }
+  });
+  google.accounts.id.renderButton(document.getElementById("gsiButtonContainer"), {
+    theme: "filled_blue", size: "large", width: 320
+  });
+}
+
+function openLoginModal() {
+  document.getElementById("inputStudentName").value = state.studentName;
+  document.getElementById("inputStudentEmail").value = state.studentEmail;
+  document.getElementById("loginError").textContent = "";
+  document.getElementById("loginModal").style.display = "flex";
+}
+
+function saveManualLogin() {
+  const name = document.getElementById("inputStudentName").value.trim();
+  const email = document.getElementById("inputStudentEmail").value.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    document.getElementById("loginError").textContent = "Please enter a valid school Gmail address.";
+    return;
+  }
+  if (CONFIG.schoolDomain && !email.endsWith("@" + CONFIG.schoolDomain)) {
+    document.getElementById("loginError").textContent = `Access requires a @${CONFIG.schoolDomain} school email address.`;
+    return;
+  }
+  state.studentName = name || email.split("@")[0];
+  state.studentEmail = email;
+  localStorage.setItem("pyweb_name", state.studentName);
+  localStorage.setItem("pyweb_email", state.studentEmail);
+  updateStudentBadge();
+  closeModal("loginModal");
+}
+
+function updateStudentBadge() {
+  const el = document.getElementById("studentEmailDisplay");
+  el.textContent = state.studentEmail ? state.studentEmail : "Sign in (School Gmail)";
+}
+
+function updateCompletedBadge() {
+  const count = Object.values(state.progress).filter(p => p.passed).length;
+  document.getElementById("completedBadge").textContent = count;
+}
+
+function openTeacherModal() {
+  const entries = Object.values(state.progress);
+  const completed = entries.filter(e => e.passed);
+  const allImprovements = entries.flatMap(e => e.improvements || []);
+
+  document.getElementById("webhookInput").value = CONFIG.webhookUrl;
+  document.getElementById("dispatchStatus").textContent = "";
+  document.getElementById("teacherSummaryBox").innerHTML = `
+    <div><strong>Student:</strong> ${escapeHtml(state.studentName || "Not signed in")} (${escapeHtml(state.studentEmail || "No Gmail logged")})</div>
+    <div><strong>Class:</strong> ${escapeHtml(CONFIG.classPeriod)}</div>
+    <div><strong>Completed Tasks (${completed.length}):</strong> ${completed.length ? completed.map(c => escapeHtml(c.title)).join(", ") : "None yet"}</div>
+    <div style="margin-top:6px;"><strong>Areas of Improvement:</strong><br>${allImprovements.length ? allImprovements.map(i => "• " + escapeHtml(i)).join("<br>") : "• Great work! No outstanding issues."}</div>
+  `;
+  document.getElementById("teacherModal").style.display = "flex";
+}
+
+async function sendToGoogleSheet(eventType, taskTitle, score, passed, improvements, code) {
+  const url = document.getElementById("webhookInput")?.value.trim() || CONFIG.webhookUrl;
+  if (!url) return false;
+  CONFIG.webhookUrl = url;
+  localStorage.setItem("pyweb_webhook", url);
+
+  const completed = Object.values(state.progress).filter(p => p.passed).map(p => p.title);
+  const payload = {
+    eventType,
+    studentEmail: state.studentEmail || "Not Signed In",
+    studentName: state.studentName || "Unknown",
+    classPeriod: CONFIG.classPeriod,
+    taskTitle,
+    score,
+    passed,
+    completedCount: completed.length,
+    completedTasks: completed,
+    areasOfImprovement: improvements,
+    code
+  };
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function dispatchReportToTeacher() {
+  if (!state.studentEmail) {
+    openLoginModal();
+    return;
+  }
+  const entries = Object.values(state.progress);
+  const allImprovements = entries.flatMap(e => e.improvements || []);
+  const code = document.getElementById("codeEditor").value;
+  const ok = await sendToGoogleSheet("FULL_REPORT", "Teacher Summary Dispatch", "", true, allImprovements, code);
+  document.getElementById("dispatchStatus").textContent = ok
+    ? `✅ Report sent to teacher's Google Sheet for ${state.studentEmail}!`
+    : "⚠️ Enter a valid Google Apps Script Webhook URL above, or use 'Copy for Google Classroom'.";
+}
+
+function copyReportForClassroom() {
+  const entries = Object.values(state.progress);
+  const completed = entries.filter(e => e.passed).map(e => `${e.title} (${e.score}%)`);
+  const improvements = entries.flatMap(e => e.improvements || []);
+  const text = [
+    `Student: ${state.studentName || "Unknown"} (${state.studentEmail || "No Gmail"})`,
+    `Class: ${CONFIG.classPeriod}`,
+    `Completed Tasks: ${completed.join(", ") || "None"}`,
+    `Areas of Improvement: ${improvements.join("; ") || "None"}`
+  ].join("\n");
+  navigator.clipboard.writeText(text);
+  document.getElementById("dispatchStatus").textContent = "📋 Progress summary copied! Paste directly into your Google Classroom private comment.";
+}
+
+function downloadStudentCode() {
+  const code = document.getElementById("codeEditor").value;
+  const filename = document.getElementById("editorFileLabel").textContent || "solution.py";
+  const blob = new Blob([code], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = "none";
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+</script>
+</body>
+</html>
